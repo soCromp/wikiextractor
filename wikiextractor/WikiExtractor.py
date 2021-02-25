@@ -43,8 +43,8 @@ Each file will contain several documents in the format:
         ...
         </doc>
 
-If the program is invoked with the --json flag, then each file will                                            
-contain several documents formatted as json ojects, one per line, with                                         
+If the program is invoked with the --json flag, then each file will
+contain several documents formatted as json ojects, one per line, with
 the following structure
 
     {"id": "", "revid": "", "url": "", "title": "", "text": "..."}
@@ -59,6 +59,7 @@ import logging
 import os.path
 import re  # TODO use regex when it will be standard
 import sys
+import io
 from io import StringIO
 from multiprocessing import Queue, Process, cpu_count
 from timeit import default_timer
@@ -160,6 +161,9 @@ class OutputSplitter():
         self.nextFile = nextFile
         self.compress = compress
         self.max_file_size = max_file_size
+        self.file = None
+
+    def open_file(self):
         self.file = self.open(self.nextFile.next())
 
     def reserve(self, size):
@@ -178,7 +182,7 @@ class OutputSplitter():
         if self.compress:
             return bz2.BZ2File(filename + '.bz2', 'w')
         else:
-            return open(filename, 'w')
+            return io.open(filename, 'w', encoding='utf-8') #return open(filename, 'w')
 
 
 # ----------------------------------------------------------------------
@@ -337,7 +341,8 @@ def process_dump(input_file, template_file, out_file, file_size, file_compress,
         logging.info("Loaded %d templates in %.1fs", templates, template_load_elapsed)
 
     if out_file == '-':
-        output = sys.stdout
+        # output = sys.stdout ## sys.stdout, but we should postpone assigning output to sys.stdout after forking
+        output = None
         if file_compress:
             logging.warn("writing to stdout, so no output compression (use an external tool)")
     else:
@@ -442,8 +447,8 @@ def process_dump(input_file, template_file, out_file, file_size, file_compress,
     # wait for it to finish
     reduce.join()
 
-    if output != sys.stdout:
-        output.close()
+    #if output != sys.stdout:
+    #    output.close()
     extract_duration = default_timer() - extract_start
     extract_rate = ordinal / extract_duration
     logging.info("Finished %d-process extraction of %d articles in %.1fs (%.1f art/s)",
@@ -477,6 +482,10 @@ def reduce_process(output_queue, output):
     :param output_queue: text to be output.
     :param output: file object where to print.
     """
+    if isinstance(output, OutputSplitter):
+        output.open_file()
+    else:
+        output = sys.stdout
 
     interval_start = default_timer()
     period = 100000
@@ -500,6 +509,8 @@ def reduce_process(output_queue, output):
                 break
             ordinal, text = pair
             ordering_buffer[ordinal] = text
+    if isinstance(output, OutputSplitter):
+        output.file.close()
 
 
 # ----------------------------------------------------------------------

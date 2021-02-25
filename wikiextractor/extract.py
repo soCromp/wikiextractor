@@ -811,7 +811,7 @@ class Extractor():
     # Whether to produce json instead of the default <doc> output format.
     toJson = False
 
-    def __init__(self, id, revid, urlbase, title, page):
+    def __init__(self, id, revid, urlbase, title, page, to_json=True):
         """
         :param page: a list of lines.
         """
@@ -820,6 +820,7 @@ class Extractor():
         self.url = get_url(urlbase, id)
         self.title = title
         self.page = page
+        self.to_json = to_json
         self.magicWords = MagicWords()
         self.frame = []
         self.recursion_exceeded_1_errs = 0  # template recursion within expandTemplates()
@@ -827,8 +828,8 @@ class Extractor():
         self.recursion_exceeded_3_errs = 0  # parameter recursion
         self.template_title_errs = 0
 
-    def clean_text(self, text, mark_headers=False, expand_templates=False,
-                   html_safe=True):
+    def clean_text(self, text, mark_headers=False, expand_templates=False, html_safe=True):
+
         """
         :param mark_headers: True to distinguish headers from paragraphs
           e.g. "## Section 1"
